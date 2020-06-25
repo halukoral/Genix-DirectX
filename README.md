@@ -1,1 +1,1 @@
-Genix-Directx
+Genix-DirectX
