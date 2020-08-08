@@ -147,7 +147,7 @@ private:
 
 	// identifies the render-target subresources 
 	// that can be accessed during rendering.
-	// A rendertarget is a resource that can be written by the 
+	// A render target is a resource that can be written by the 
 	// output-merger stage at the end of a render pass. Each 
 	// render-target should also have a corresponding depth-stencil view.
 	Microsoft::WRL::ComPtr<ID3D11RenderTargetView> pTarget;

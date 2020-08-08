@@ -201,51 +201,148 @@ void Graphics::DrawTestTriangle()
 
 	struct Vertex
 	{
-		float x;
-		float y;
+		struct
+		{
+			float x;
+			float y;
+		} pos;
+		struct
+		{
+			unsigned char r;
+			unsigned char g;
+			unsigned char b;
+			unsigned char a;
+		} color;
 	};
 
 	// create vertex buffer (1 2d triangle at center of screen)
-	const Vertex vertices[] =
+	Vertex vertices[] =
 	{
-		{ 0.0f,0.5f },
-		{ 0.5f,-0.5f },
-		{ -0.5f,-0.5f },
+		{ 0.0f,0.5f,255,0,0,0 },
+		{ 0.5f,-0.5f,0,255,0,0 },
+		{ -0.5f,-0.5f,0,0,255,0 },
+		{ -0.3f,0.3f,0,255,0,0 },
+		{ 0.3f,0.3f,0,0,255,0 },
+		{ 0.0f,-0.8f,255,0,0,0 },
 	};
+	vertices[0].color.g = 255;
 
+	// Introduction to Buffers in Direct3D 11:
+	// https://docs.microsoft.com/en-us/windows/win32/direct3d11/overviews-direct3d-11-resources-buffers-intro
+	// ID3D11Buffer: A buffer interface accesses a buffer resource, 
+	// which is unstructured memory. Buffers typically store vertex or index data.
+	// There are three types of buffers: vertex, index, or a shader-constant buffer.
 	wrl::ComPtr<ID3D11Buffer> pVertexBuffer;
+	
 	D3D11_BUFFER_DESC bd = {};
-	bd.BindFlags = D3D11_BIND_VERTEX_BUFFER;
-	bd.Usage = D3D11_USAGE_DEFAULT;
-	bd.CPUAccessFlags = 0u;
+	bd.BindFlags = D3D11_BIND_VERTEX_BUFFER; //Identify how the buffer will be bound to the pipeline.
+	bd.Usage = D3D11_USAGE_DEFAULT; //Identify how the buffer is expected to be read from and written to.
+	bd.CPUAccessFlags = 0u; //0 if no CPU access is necessary
 	bd.MiscFlags = 0u;
-	bd.ByteWidth = sizeof( vertices );
-	bd.StructureByteStride = sizeof( Vertex );
+	bd.ByteWidth = sizeof(vertices); //Size of the buffer in bytes.
+	bd.StructureByteStride = sizeof( Vertex ); //The size of each element in the buffer structure (in bytes) when the buffer represents a structured buffer.
+	
 	D3D11_SUBRESOURCE_DATA sd = {};
-	sd.pSysMem = vertices;
-	GFX_THROW_INFO( pDevice->CreateBuffer( &bd,&sd,&pVertexBuffer ) );
+	sd.pSysMem = vertices; // Pointer to the initialization data.
+
+	// How to: Create a Vertex Buffer:
+	// https://docs.microsoft.com/en-us/windows/win32/direct3d11/overviews-direct3d-11-resources-buffers-vertex-how-to
+	//Creates a buffer (vertex buffer, index buffer, or shader-constant buffer).
+	GFX_THROW_INFO( pDevice->CreateBuffer( 
+						&bd, //A pointer to a D3D11_BUFFER_DESC structure that describes the buffer.
+						&sd, //A pointer to a D3D11_SUBRESOURCE_DATA structure that describes the initialization data; use NULL to allocate space only
+						&pVertexBuffer //Address of a pointer to the ID3D11Buffer interface for the buffer object created. Set this parameter to NULL to validate the other input parameters 
+					) );
 
 	// Bind vertex buffer to pipeline
 	const UINT stride = sizeof( Vertex );
 	const UINT offset = 0u;
-	pContext->IASetVertexBuffers( 0u,1u,pVertexBuffer.GetAddressOf(),&stride,&offset );
+	// Bind an array of vertex buffers to the input-assembler stage.
+	pContext->IASetVertexBuffers( 
+		0u, //The first input slot for binding. The first vertex buffer is explicitly bound to the start slot
+		1u, //The number of vertex buffers in the array.
+		pVertexBuffer.GetAddressOf(),//A pointer to an array of vertex buffers
+		&stride, //Pointer to an array of stride values; one stride value for each buffer in the vertex-buffer array.
+		&offset //ointer to an array of offset values; one offset value for each buffer in the vertex-buffer array.
+	);
 
+	// create index buffer
+	const unsigned short indices[] =
+	{
+		0,1,2,
+		0,2,3,
+		0,4,1,
+		2,1,5,
+	};
+	wrl::ComPtr<ID3D11Buffer> pIndexBuffer;
+	D3D11_BUFFER_DESC ibd = {};
+	ibd.BindFlags = D3D11_BIND_INDEX_BUFFER;
+	ibd.Usage = D3D11_USAGE_DEFAULT;
+	ibd.CPUAccessFlags = 0u;
+	ibd.MiscFlags = 0u;
+	ibd.ByteWidth = sizeof(indices);
+	ibd.StructureByteStride = sizeof(unsigned short);
+	D3D11_SUBRESOURCE_DATA isd = {};
+	isd.pSysMem = indices;
+	GFX_THROW_INFO(pDevice->CreateBuffer(&ibd, &isd, &pIndexBuffer));
+
+	// bind index buffer
+	pContext->IASetIndexBuffer(pIndexBuffer.Get(), DXGI_FORMAT_R16_UINT, 0u);
+
+
+	// This interface is used to return data of arbitrary length.
+	// Blobs can be used as data buffers. Blobs can also be used for storing vertex, adjacency, 
+	// and material information during mesh optimization, and for loading operations. 
+	// Also, these objects are used to return object code and error messages 
+	// in APIs that compile vertex, geometry, and pixel shaders.
 	wrl::ComPtr<ID3DBlob> pBlob;
 	
-	// create vertex shader
-	wrl::ComPtr<ID3D11VertexShader> pVertexShader;
-	GFX_THROW_INFO( D3DReadFileToBlob( L"VertexShader.cso",&pBlob ) );
-	GFX_THROW_INFO( pDevice->CreateVertexShader( pBlob->GetBufferPointer(),pBlob->GetBufferSize(),nullptr,&pVertexShader ) );
-
-	// bind vertex shader
-	pContext->VSSetShader( pVertexShader.Get(),nullptr,0u );
-
-	// create pixel shader
+	/******************************** CREATE PIXEL SHADER ********************************/
+	// A pixel-shader interface manages an executable program (a pixel shader) that controls the pixel-shader stage.
 	wrl::ComPtr<ID3D11PixelShader> pPixelShader;
-	GFX_THROW_INFO( D3DReadFileToBlob( L"PixelShader.cso",&pBlob ) );
-	GFX_THROW_INFO( pDevice->CreatePixelShader( pBlob->GetBufferPointer(),pBlob->GetBufferSize(),nullptr,&pPixelShader ) );
+	GFX_THROW_INFO(D3DReadFileToBlob(
+		L"PixelShader.cso",// A pointer to a constant null-terminated string that contains the name of the file to read into memory.
+		&pBlob  // A pointer to a variable that receives a pointer to the ID3DBlob interface 
+				// that contains information that D3DReadFileToBlob read from the pFileName file.
+	));
 
-	// bind pixel shader
+	GFX_THROW_INFO(pDevice->CreatePixelShader(
+		pBlob->GetBufferPointer(), //A pointer to the compiled shader.
+		pBlob->GetBufferSize(), // Size of the compiled pixel shader.
+		nullptr, //A pointer to a class linkage interface (see ID3D11ClassLinkage); the value can be NULL.
+		&pPixelShader //Address of a pointer to a ID3D11PixelShader interface.
+	));
+	
+	/******************************** CREATE VERTEX SHADER ********************************/
+	// A vertex-shader interface manages an executable program (a vertex shader) that controls the vertex-shader stage.
+	// The vertex-shader interface has no methods; use HLSL to implement your shader functionality.
+	wrl::ComPtr<ID3D11VertexShader> pVertexShader;
+	// Reads a file that is on disk into memory.
+	GFX_THROW_INFO( D3DReadFileToBlob( 
+						L"VertexShader.cso", // A pointer to a constant null-terminated string that contains the name of the file to read into memory.
+						&pBlob // A pointer to a variable that receives a pointer to the ID3DBlob interface 
+							   // that contains information that D3DReadFileToBlob read from the pFileName file.
+					) );
+	
+	// Create a vertex-shader object from a compiled shader.
+	GFX_THROW_INFO( pDevice->CreateVertexShader( 
+						pBlob->GetBufferPointer(), // A pointer to the compiled shader.
+						pBlob->GetBufferSize(), // Size of the compiled vertex shader.
+						nullptr, // A pointer to a class linkage interface (see ID3D11ClassLinkage); the value can be NULL.
+						&pVertexShader // Address of a pointer to a ID3D11VertexShader interface.
+					) );
+
+	/******************************** BIND VERTEX SHADER ********************************/
+	// Set a vertex shader to the device.
+	pContext->VSSetShader( 
+		pVertexShader.Get(), // Pointer to a vertex shader (see ID3D11VertexShader). Passing in NULL disables the shader for this pipeline stage.
+		nullptr, // A pointer to an array of class-instance interfaces. NULL if the shader does not use any interfaces.
+		0u // The number of class-instance interfaces in the array.
+	);
+
+
+
+	/******************************** BIND PIXEL SHADER ********************************/
 	pContext->PSSetShader( pPixelShader.Get(),nullptr,0u );
 
 	// input (vertex) layout (2d position only)
@@ -253,6 +350,8 @@ void Graphics::DrawTestTriangle()
 	const D3D11_INPUT_ELEMENT_DESC ied[] =
 	{
 		{ "Position",0,DXGI_FORMAT_R32G32_FLOAT,0,0,D3D11_INPUT_PER_VERTEX_DATA,0 },
+		{ "Color",0,DXGI_FORMAT_R8G8B8A8_UNORM,0,8u,D3D11_INPUT_PER_VERTEX_DATA,0 },
+
 	};
 	GFX_THROW_INFO( pDevice->CreateInputLayout(
 		ied,(UINT)std::size( ied ),
@@ -261,16 +360,19 @@ void Graphics::DrawTestTriangle()
 		&pInputLayout
 	) );
 
-	// bind vertex layout
+	/******************************** BIND VERTEX LAYOUT ********************************/
 	pContext->IASetInputLayout( pInputLayout.Get() );
 
-	// bind render target
+	/******************************** BIND RENDER TARGET ********************************/
 	pContext->OMSetRenderTargets( 1u,pTarget.GetAddressOf(),nullptr );
 
 	// Set primitive topology to triangle list (groups of 3 vertices)
 	pContext->IASetPrimitiveTopology( D3D11_PRIMITIVE_TOPOLOGY_TRIANGLELIST );
 
-	// configure viewport
+	/******************************** CONFIGURE VIEWPORT ********************************/
+	// Defines the dimensions of a viewport.
+	// In all cases, Width and Height must be >= 0 and 
+	// TopLeftX + Width and TopLeftY + Height must be <= D3D11_VIEWPORT_BOUNDS_MAX.
 	D3D11_VIEWPORT vp;
 	vp.Width = 1280;
 	vp.Height = 720;
@@ -278,9 +380,16 @@ void Graphics::DrawTestTriangle()
 	vp.MaxDepth = 1;
 	vp.TopLeftX = 0;
 	vp.TopLeftY = 0;
-	pContext->RSSetViewports( 1u,&vp );
+	// Bind an array of viewports to the rasterizer stage of the pipeline.
+	pContext->RSSetViewports( 
+		1u, // Number of viewports to bind.
+		&vp // An array of D3D11_VIEWPORT structures to bind to the device. 
+	);
 
-	GFX_THROW_INFO_ONLY( pContext->Draw( (UINT)std::size( vertices ),0u ) );
+	// Draw: Draw non-indexed, non-instanced primitives.
+	// Draw submits work to the rendering pipeline.
+	// The vertex data for a draw call normally comes from a vertex buffer that is bound to the pipeline.
+	GFX_THROW_INFO_ONLY(pContext->DrawIndexed((UINT)std::size(indices), 0u, 0u));
 }
 
 ////////////////////////////////////////////////////////////////////////////////////

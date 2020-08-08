@@ -1,0 +1,2 @@
+K:\Projects\Genix-Directx\x64\Debug\Genix.exe
+K:\Projects\Genix-Directx\x64\Debug\Genix.pdb
