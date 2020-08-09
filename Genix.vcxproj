@@ -161,6 +161,7 @@
     <ClInclude Include="GenixException.h" />
     <ClInclude Include="GenixTimer.h" />
     <ClInclude Include="Graphics.h" />
+    <ClInclude Include="GraphicsThrowMacros.h" />
     <ClInclude Include="Keyboard.h" />
     <ClInclude Include="Mouse.h" />
     <ClInclude Include="resource.h" />

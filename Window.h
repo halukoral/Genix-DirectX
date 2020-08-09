@@ -12,32 +12,30 @@ class Window
 public:
 	class Exception : public GenixException
 	{
+		using GenixException::GenixException;
 	public:
-		Exception(int line, const char* file) noexcept
-			: GenixException(line, file), hr(0) {}
-
-		Exception(int line, const char* file, HRESULT hr) noexcept
-			: GenixException(line, file), hr(hr) {}
-
-				const char* what()			const noexcept override;
-		virtual const char* GetType()		const noexcept	{ return "Genix Window Exception"; }
-			
-			HRESULT GetErrorCode()			const noexcept	{ return hr; }
-		std::string GetErrorDescription()	const noexcept	{ return TranslateErrorCode(hr); }
-
 		static std::string TranslateErrorCode(HRESULT hr) noexcept;
-			
-	private:
-		// A 32-bit value that is used to describe an error or warning.
-		HRESULT hr;
 	};
 
+	class HrException : public Exception
+	{
+	public:
+		HrException(int line, const char* file, HRESULT hr) noexcept;
+		const char* what() const noexcept override;
+		const char* GetType() const noexcept override;
+		HRESULT GetErrorCode() const noexcept;
+		std::string GetErrorDescription() const noexcept;
+	private:
+		HRESULT hr;
+	};
+	
 	class NoGfxException : public Exception
 	{
 	public:
 		using Exception::Exception;
-		const char* GetType() const noexcept override { return "Genix Window Exception [No Graphics]"; }
+		const char* GetType() const noexcept override;
 	};
+
 public:
 	Window();
 	~Window();
@@ -112,8 +110,3 @@ private:
 		
 	std::unique_ptr<Graphics> pGfx;
 };
-
-// error exception helper macro
-#define GHWND_EXCEPT( hr )	 Window::Exception( __LINE__,__FILE__,hr )
-#define GHWND_LAST_EXCEPT()  Window::Exception( __LINE__,__FILE__,GetLastError() )
-#define GHWND_NOGFX_EXCEPT() Window::NoGfxException( __LINE__,__FILE__ )
